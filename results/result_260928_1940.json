@@ -1,0 +1,24 @@
+{
+  "graded_at": "2026-09-28T19:40:28+0900",
+  "solution": "./build/solution",
+  "summary": "nearest-block greedy: 사거리 안에 부술 블럭이 있으면 B, 없으면 BFS로 가장 가까운 블럭(보행 거리 기준)을 향해 한 칸 이동 (우선순위 U,L,R,D). 도달 가능한 블럭이 없으면 B로 턴 소비. C=2는 두 캐릭터가 번갈아 독립적으로 같은 규칙 적용",
+  "total_score": 804478,
+  "max_score": 1000000,
+  "cases": [
+    {"case": 1, "n": 3, "m": 3, "c": 1, "valid": true, "error": null, "length": 1, "remaining_blocks": 0, "cost": 1, "cost_ref": 1, "score": 50000, "max_score": 50000, "time_ms": 2.6},
+    {"case": 2, "n": 1, "m": 5, "c": 1, "valid": true, "error": null, "length": 4, "remaining_blocks": 0, "cost": 4, "cost_ref": 4, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 3, "n": 5, "m": 5, "c": 2, "valid": true, "error": null, "length": 3, "remaining_blocks": 0, "cost": 3, "cost_ref": 3, "score": 50000, "max_score": 50000, "time_ms": 3.4},
+    {"case": 4, "n": 5, "m": 7, "c": 1, "valid": true, "error": null, "length": 10, "remaining_blocks": 0, "cost": 10, "cost_ref": 9, "score": 45000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 5, "n": 6, "m": 7, "c": 1, "valid": true, "error": null, "length": 27, "remaining_blocks": 0, "cost": 27, "cost_ref": 18, "score": 33333, "max_score": 50000, "time_ms": 2.4},
+    {"case": 6, "n": 4, "m": 5, "c": 1, "valid": true, "error": null, "length": 12, "remaining_blocks": 0, "cost": 12, "cost_ref": 12, "score": 50000, "max_score": 50000, "time_ms": 2.8},
+    {"case": 7, "n": 13, "m": 13, "c": 1, "valid": true, "error": null, "length": 48, "remaining_blocks": 0, "cost": 48, "cost_ref": 37, "score": 38541, "max_score": 50000, "time_ms": 2.9},
+    {"case": 8, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 118, "remaining_blocks": 0, "cost": 118, "cost_ref": 129, "score": 50000, "max_score": 50000, "time_ms": 2.9},
+    {"case": 9, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 169, "remaining_blocks": 0, "cost": 169, "cost_ref": 151, "score": 44674, "max_score": 50000, "time_ms": 3.1},
+    {"case": 10, "n": 16, "m": 16, "c": 1, "valid": true, "error": null, "length": 123, "remaining_blocks": 0, "cost": 123, "cost_ref": 127, "score": 50000, "max_score": 50000, "time_ms": 3.6},
+    {"case": 11, "n": 17, "m": 18, "c": 2, "valid": true, "error": null, "length": 84, "remaining_blocks": 0, "cost": 84, "cost_ref": 80, "score": 95238, "max_score": 100000, "time_ms": 2.8},
+    {"case": 12, "n": 13, "m": 13, "c": 2, "valid": true, "error": null, "length": 60, "remaining_blocks": 0, "cost": 60, "cost_ref": 37, "score": 61666, "max_score": 100000, "time_ms": 2.7},
+    {"case": 13, "n": 15, "m": 15, "c": 2, "valid": true, "error": null, "length": 77, "remaining_blocks": 0, "cost": 77, "cost_ref": 35, "score": 45454, "max_score": 100000, "time_ms": 2.6},
+    {"case": 14, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 278, "remaining_blocks": 0, "cost": 278, "cost_ref": 238, "score": 85611, "max_score": 100000, "time_ms": 3.4},
+    {"case": 15, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 131, "remaining_blocks": 0, "cost": 131, "cost_ref": 72, "score": 54961, "max_score": 100000, "time_ms": 2.8}
+  ]
+}
