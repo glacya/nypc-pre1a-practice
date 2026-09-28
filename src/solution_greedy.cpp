@@ -1,5 +1,8 @@
 // NYPC 2026 스텝 업 — 배찌와 다오의 대청소
 //
+// [보존본] 상태 공간 BFS를 추가하기 전의 greedy 전용 솔루션 (목표 칸 점수화, b = 1.1, c = 1.1).
+// 현재 솔루션은 src/solution.cpp 이며, 이 파일은 비교용으로만 유지한다.
+//
 // stdin으로 입력 하나를 받아, stdout으로 행동 문자열을 출력한다.
 // 코드는 세 구역으로 나뉜다.
 //   [1] INPUT   : 입력을 읽어 문제 상태(Problem)를 만든다.
@@ -10,9 +13,7 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
-#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
@@ -266,13 +267,13 @@ struct PlannerConfig {
     //   a는 모든 후보의 점수에 같은 배율로 곱해지므로(r_z 나누기도 곱셈이라) 순위를 바꾸지 않는다.
     //   다른 항이 덧셈으로 섞이는 공식으로 바뀔 때를 위해 남겨 둔다.
     double blockWeightScale = 1.0;     // a
-    double blockWeightExponent = 1.0;  // b
+    double blockWeightExponent = 1.1;  // b
     // 이동 비용 가중치 c: 분자(r 또는 r + 1) 전체를 c제곱한다.
     //   c > 1이면 먼 후보일수록 비용이 거리보다 빠르게 커져, 멀리 걸어가야 하는 목표의
     //   우선순위가 낮아진다. b > 1(여러 개 부수는 칸 우대)이 먼 칸까지 끌고 가는 경향을
     //   상쇄하려는 의도. c = 1이면 원래 공식과 같다.
     //   (r^c + 1 형태도 시험했으나 c = 1.0이 최고여서, 폭탄 1회를 포함한 (r + 1)^c로 교체)
-    double distanceExponent = 1.0;     // c
+    double distanceExponent = 1.1;     // c
     // C=2 반발 세기 α: 점수를 r_z^α로 나눈다 (0 < α < 1이면 r_z의 영향이 완만해짐).
     double repulsionExponent = 0.5;
 };
@@ -427,10 +428,10 @@ private:
     std::vector<std::optional<Plan>> plans_;
 };
 
-// 목표 칸 점수화 greedy로 행동 목록을 만든다.
+// 문제를 풀어 출력할 행동 목록을 만든다.
 // 배찌부터 캐릭터들이 번갈아 한 턴씩 행동하며, 블럭이 모두 없어지면 즉시 멈춘다
 // (C=2에서 배찌의 턴에 끝나도 된다). 출력 길이 제한(100 000)에 도달하면 그 자리에서 멈춘다.
-std::vector<Action> solveGreedy(const Problem& problem) {
+std::vector<Action> solve(const Problem& problem) {
     constexpr int kMaxActions = 100000;
 
     TurnRunner runner(problem, kPlannerConfig);
@@ -440,262 +441,6 @@ std::vector<Action> solveGreedy(const Problem& problem) {
         actions.push_back(runner.playTurn(turn % numCharacters));
     }
     return actions;
-}
-
-// ---------------------------------------------------------------------------
-// 정확한 탐색: (부순 블럭 집합 S, 캐릭터 위치들, 차례) 상태 공간 BFS
-// ---------------------------------------------------------------------------
-
-// 정확한 탐색의 한계값. 하나라도 넘으면 탐색을 포기하고 greedy를 쓴다.
-struct ExactSearchLimits {
-    int maxBlocks = 16;                        // 블럭 수 n이 이보다 크면 시도하지 않음 (n = 19~28은 10초 안에 불가능함을 확인)
-    double timeLimitSeconds = 10.0;            // BFS 실행 시간 제한
-    std::uint64_t maxStates = 200'000'000ULL;  // 상태 배열 크기 상한 (메모리 보호: 상태당 5바이트 → 약 1GB)
-};
-
-constexpr ExactSearchLimits kExactSearchLimits{};
-
-// 최단 행동 열을 상태 공간 BFS로 구한다.
-//
-// 핵심 관찰: 지금까지 부순 블럭 집합 S가 정해지면 현재 격자는 "초기 격자에서 S의 블럭만
-//   빈 칸으로 바꾼 것"으로 완전히 결정된다. 따라서 블럭이 부서지며 길과 물줄기 범위가
-//   바뀌는 "동적 그래프" 문제가, 상태에 S를 넣는 것만으로 정적인 그래프 탐색이 된다.
-//
-// 상태: (S, 캐릭터별 위치, 차례)
-//   - S: n비트 마스크. 블럭 i가 부서졌으면 i번째 비트가 1.
-//   - 위치: 장애물이 아닌 칸(빈 칸 + 블럭 칸)에 번호를 붙여 사용. 블럭 칸은 부서진 뒤에만 설 수 있다.
-//   - 차례: C=2에서 다음에 행동할 캐릭터 (0 = 배찌, 1 = 다오). C=1이면 항상 0.
-//     같은 (S, 위치)라도 누구 차례인지에 따라 이후가 달라지므로 상태에 포함해야 한다.
-// 전이: 차례인 캐릭터의 행동 하나 (비용 1).
-//   - 이동: 격자 안이고 장애물이 아니며, 블럭 칸이면 이미 부서진 경우만.
-//   - 폭탄: 현재 S 기준으로 물줄기를 계산해 부서진 블럭을 S에 추가.
-//     C=1에서 아무것도 부수지 못하는 폭탄은 최적해에 나올 수 없으므로 전이에서 뺀다.
-//     C=2에서는 "대기" 행동이 없으므로, 헛폭탄이 상대를 기다리는 유일한 방법이 될 수 있어 포함한다.
-// 모든 행동의 비용이 1이므로 BFS로 처음 도달한 "S = 전체" 상태가 최적해다.
-//
-// 저장: 상태를 정수 인덱스로 펼쳐, 가능한 모든 상태(2^n × 칸^C × C개)의 자리를 배열로 미리 잡는다.
-//   - parent_ / lastAction_: 상태 인덱스 → 부모 상태 인덱스(4바이트), 그 상태로 올 때의 행동(1바이트).
-//   - queue_: BFS 큐 (방문 순서대로 상태 인덱스를 쌓음).
-//   실제로 방문하는 상태는 이보다 훨씬 적지만(예: 덩어리 안쪽 블럭은 바깥 블럭보다 먼저 부서질 수
-//   없으므로 그런 S는 나타나지 않는다), 구현이 단순하고 방문 확인이 빠르다.
-// 한계: 상태 수가 n과 C에 대해 지수적이다 (C=2는 칸 수의 제곱이 곱해짐).
-//   상태 배열 크기나 시간 한계를 넘으면 포기한다.
-//   (방문한 상태만 해시 테이블에 저장하는 방식도 시험했으나, 블럭 19~28개 케이스는 그래도
-//    10초 안에 끝나지 않아 단순한 배열 방식으로 되돌렸다.)
-class ExactSearch {
-public:
-    ExactSearch(const Problem& problem, const ExactSearchLimits& limits) : problem_(problem), limits_(limits) {
-        const Grid& grid = problem.grid;
-        cellIndex_.assign(grid.rows() * grid.cols(), -1);
-        blockIndex_.assign(grid.rows() * grid.cols(), -1);
-        for (int r = 0; r < grid.rows(); r++) {
-            for (int c = 0; c < grid.cols(); c++) {
-                Pos p{r, c};
-                if (grid.at(p) == Cell::Obstacle) continue;
-                cellIndex_[r * grid.cols() + c] = static_cast<int>(cells_.size());
-                cells_.push_back(p);
-                if (grid.at(p) == Cell::Block) blockIndex_[r * grid.cols() + c] = numBlocks_++;
-            }
-        }
-        numCharacters_ = static_cast<int>(problem.characters.size());
-    }
-
-    // 탐색이 끝났을 때(성공/포기 모두) 방문한 상태 수. 진단용.
-    std::size_t visitedStates() const { return queue_.size(); }
-
-    // 포기한 이유 (성공했으면 빈 문자열). 진단용.
-    const std::string& giveUpReason() const { return giveUpReason_; }
-
-    // 최단 행동 열을 구한다. 한계값을 넘으면 std::nullopt.
-    std::optional<std::vector<Action>> run() {
-        if (numBlocks_ > limits_.maxBlocks) return giveUp("too many blocks");
-        if (numBlocks_ == 0) return std::vector<Action>{};  // 부술 블럭이 없음
-
-        // 상태 수 = 2^n × 칸^C × C. 한계를 넘으면 배열을 잡지 않고 포기한다.
-        std::uint64_t total = std::uint64_t{1} << numBlocks_;
-        for (int i = 0; i < numCharacters_; i++) total *= cells_.size();
-        total *= numCharacters_;
-        if (total > limits_.maxStates) return giveUp("state limit");
-        parent_.assign(total, kUnvisited);
-        lastAction_.assign(total, 0);
-
-        const std::uint32_t fullMask =
-            (numBlocks_ == 32) ? UINT32_MAX : (std::uint32_t{1} << numBlocks_) - 1;
-        StateFields startFields;
-        for (int i = 0; i < numCharacters_; i++) startFields.cells[i] = cellOf(problem_.characters[i].start);
-        const std::uint32_t start = static_cast<std::uint32_t>(encode(startFields));
-        parent_[start] = start;  // 시작 상태는 자기 자신을 부모로 표시
-        queue_.push_back(start);
-
-        const auto startTime = std::chrono::steady_clock::now();
-        for (std::size_t head = 0; head < queue_.size(); head++) {
-            // 시간 제한 확인 (매번 시계를 읽지 않도록 4096번에 한 번)
-            if ((head & 4095) == 0 && elapsedSeconds(startTime) > limits_.timeLimitSeconds)
-                return giveUp("time limit");
-
-            const std::uint32_t cur = queue_[head];
-            const StateFields f = decode(cur);
-            const int who = f.turn;
-            const int nextTurn = (f.turn + 1) % numCharacters_;
-
-            // 폭탄 전이
-            const std::uint32_t blasted = blastMask(cells_[f.cells[who]], problem_.characters[who].power, f.destroyed);
-            if (blasted != 0 || numCharacters_ == 2) {
-                StateFields nf = f;
-                nf.destroyed = f.destroyed | blasted;
-                nf.turn = nextTurn;
-                const std::uint32_t next = static_cast<std::uint32_t>(encode(nf));
-                if (visit(next, cur, Action::Bomb) && nf.destroyed == fullMask) return reconstruct(start, next);
-            }
-
-            // 이동 전이
-            for (const Direction& d : kDirections) {
-                const int target = walkableCell(step(cells_[f.cells[who]], d), f.destroyed);
-                if (target < 0) continue;
-                StateFields nf = f;
-                nf.cells[who] = target;
-                nf.turn = nextTurn;
-                visit(static_cast<std::uint32_t>(encode(nf)), cur, d.action);
-            }
-        }
-        return giveUp("unreachable");  // 입력이 올바르다면 도달하지 않음 (모든 블럭은 파괴 가능)
-    }
-
-private:
-    // 상태를 필드별로 풀어 놓은 형태.
-    struct StateFields {
-        std::uint32_t destroyed = 0;        // S
-        std::array<int, 2> cells = {0, 0};  // 캐릭터별 칸 번호 (C=1이면 [0]만 사용)
-        int turn = 0;                       // 다음에 행동할 캐릭터
-    };
-
-    static constexpr std::uint32_t kUnvisited = UINT32_MAX;
-
-    // 인덱스 = ((S × 칸 수 + 위치0) × 칸 수 + 위치1) × C + 차례
-    // 상태 수 상한(maxStates)이 2^32보다 작으므로 저장은 32비트로 충분하다.
-    std::uint64_t encode(const StateFields& f) const {
-        std::uint64_t key = f.destroyed;
-        for (int i = 0; i < numCharacters_; i++) key = key * cells_.size() + f.cells[i];
-        return key * numCharacters_ + f.turn;
-    }
-
-    StateFields decode(std::uint64_t key) const {
-        StateFields f;
-        f.turn = static_cast<int>(key % numCharacters_);
-        key /= numCharacters_;
-        for (int i = numCharacters_ - 1; i >= 0; i--) {
-            f.cells[i] = static_cast<int>(key % cells_.size());
-            key /= cells_.size();
-        }
-        f.destroyed = static_cast<std::uint32_t>(key);
-        return f;
-    }
-
-    // 처음 보는 상태면 부모·행동을 기록하고 큐에 넣은 뒤 true, 이미 방문했으면 false.
-    bool visit(std::uint32_t state, std::uint32_t parentState, Action action) {
-        if (parent_[state] != kUnvisited) return false;
-        parent_[state] = parentState;
-        lastAction_[state] = static_cast<std::uint8_t>(action);
-        queue_.push_back(state);
-        return true;
-    }
-
-    std::nullopt_t giveUp(const char* reason) {
-        giveUpReason_ = reason;
-        return std::nullopt;
-    }
-
-    int cellOf(Pos p) const { return cellIndex_[p.row * problem_.grid.cols() + p.col]; }
-
-    // 부순 블럭 집합이 destroyed일 때 p에 설 수 있으면 그 칸 번호, 아니면 -1.
-    int walkableCell(Pos p, std::uint32_t destroyed) const {
-        if (!problem_.grid.isInside(p)) return -1;
-        const int cell = cellOf(p);
-        if (cell < 0) return -1;  // 장애물
-        const int block = blockIndex_[p.row * problem_.grid.cols() + p.col];
-        if (block >= 0 && !(destroyed >> block & 1)) return -1;  // 아직 남은 블럭
-        return cell;
-    }
-
-    // 부순 블럭 집합이 destroyed일 때 from에서 세기 power로 터트리면 새로 부서지는 블럭들의 마스크.
-    // 규칙은 GameState::blastTargetsFrom과 같다 (장애물/격자 끝에서 멈춤, 방향마다 첫 블럭 하나).
-    std::uint32_t blastMask(Pos from, int power, std::uint32_t destroyed) const {
-        std::uint32_t mask = 0;
-        for (const Direction& d : kDirections) {
-            Pos p = from;
-            for (int dist = 1; dist <= power; dist++) {
-                p = step(p, d);
-                if (!problem_.grid.isInside(p) || problem_.grid.at(p) == Cell::Obstacle) break;
-                const int block = blockIndex_[p.row * problem_.grid.cols() + p.col];
-                if (block >= 0 && !(destroyed >> block & 1)) {
-                    mask |= std::uint32_t{1} << block;
-                    break;
-                }
-            }
-        }
-        return mask;
-    }
-
-    // 목표 상태에서 부모를 따라 시작 상태까지 거슬러 올라가며 행동을 모은 뒤 뒤집는다.
-    std::vector<Action> reconstruct(std::uint32_t start, std::uint32_t goal) const {
-        std::vector<Action> actions;
-        for (std::uint32_t s = goal; s != start; s = parent_[s]) actions.push_back(static_cast<Action>(lastAction_[s]));
-        std::reverse(actions.begin(), actions.end());
-        return actions;
-    }
-
-    static double elapsedSeconds(std::chrono::steady_clock::time_point since) {
-        return std::chrono::duration<double>(std::chrono::steady_clock::now() - since).count();
-    }
-
-    const Problem& problem_;
-    ExactSearchLimits limits_;
-    std::vector<Pos> cells_;       // 칸 번호 → 좌표 (장애물이 아닌 칸만)
-    std::vector<int> cellIndex_;   // 좌표 → 칸 번호 (장애물은 -1)
-    std::vector<int> blockIndex_;  // 좌표 → 블럭 번호 (블럭이 아니면 -1)
-    int numBlocks_ = 0;
-    int numCharacters_ = 1;
-
-    std::vector<std::uint32_t> parent_;     // 상태 인덱스 → 부모 상태 인덱스 (미방문 kUnvisited)
-    std::vector<std::uint8_t> lastAction_;  // 상태 인덱스 → 그 상태로 올 때의 행동
-    std::vector<std::uint32_t> queue_;      // BFS 큐 (방문 순서)
-    std::string giveUpReason_;
-};
-
-// ---------------------------------------------------------------------------
-// 풀이 선택
-// ---------------------------------------------------------------------------
-
-// 문제를 풀어 출력할 행동 목록을 만든다.
-// 1. 정확한 탐색(ExactSearch)을 먼저 시도한다: 블럭 수 ≤ 16, 방문 상태 수·시간(10초) 한계 안이면 최적해.
-// 2. 조건을 넘어 포기하면 목표 칸 점수화 greedy(solveGreedy)를 쓴다.
-// 환경 변수 NYPC_DEBUG가 있으면 어떤 방법을 썼는지 stderr에 적는다 (stdout 출력에는 영향 없음).
-std::vector<Action> solve(const Problem& problem) {
-    const bool debug = std::getenv("NYPC_DEBUG") != nullptr;
-    const auto startTime = std::chrono::steady_clock::now();
-
-    std::optional<std::vector<Action>> exact;
-    std::size_t visitedStates = 0;
-    std::string reason;
-    {
-        // 탐색이 끝나면 방문 기록(수 GB일 수 있음)을 바로 해제하도록 블록 안에 둔다.
-        ExactSearch search(problem, kExactSearchLimits);
-        exact = search.run();
-        visitedStates = search.visitedStates();
-        reason = search.giveUpReason();
-    }
-    const double seconds =
-        std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
-    if (exact) {
-        if (debug)
-            std::cerr << "[solve] exact BFS: " << exact->size() << " actions, " << visitedStates << " states, "
-                      << seconds << "s\n";
-        return *exact;
-    }
-    if (debug)
-        std::cerr << "[solve] exact BFS gave up (" << reason << ") after " << visitedStates << " states, "
-                  << seconds << "s; using greedy\n";
-    return solveGreedy(problem);
 }
 
 // ============================================================================

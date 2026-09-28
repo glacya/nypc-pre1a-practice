@@ -1,0 +1,24 @@
+{
+  "graded_at": "2026-09-29T00:00:00+0900",
+  "solution": "./build/solution",
+  "summary": "상태 공간 BFS(블럭 ≤ 16, 상태 ≤ 2억, 10초) + greedy 폴백. 폴백 greedy를 b=1.0, c=1.0으로 복원 ((r+1)/x, C=2 r_z^0.5)",
+  "total_score": 986690,
+  "max_score": 1000000,
+  "cases": [
+    {"case": 1, "n": 3, "m": 3, "c": 1, "valid": true, "error": null, "length": 1, "remaining_blocks": 0, "cost": 1, "cost_ref": 1, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 2, "n": 1, "m": 5, "c": 1, "valid": true, "error": null, "length": 4, "remaining_blocks": 0, "cost": 4, "cost_ref": 4, "score": 50000, "max_score": 50000, "time_ms": 2.5},
+    {"case": 3, "n": 5, "m": 5, "c": 2, "valid": true, "error": null, "length": 3, "remaining_blocks": 0, "cost": 3, "cost_ref": 3, "score": 50000, "max_score": 50000, "time_ms": 2.5},
+    {"case": 4, "n": 5, "m": 7, "c": 1, "valid": true, "error": null, "length": 9, "remaining_blocks": 0, "cost": 9, "cost_ref": 9, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 5, "n": 6, "m": 7, "c": 1, "valid": true, "error": null, "length": 17, "remaining_blocks": 0, "cost": 17, "cost_ref": 18, "score": 50000, "max_score": 50000, "time_ms": 3.2},
+    {"case": 6, "n": 4, "m": 5, "c": 1, "valid": true, "error": null, "length": 11, "remaining_blocks": 0, "cost": 11, "cost_ref": 12, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 7, "n": 13, "m": 13, "c": 1, "valid": true, "error": null, "length": 45, "remaining_blocks": 0, "cost": 45, "cost_ref": 37, "score": 41111, "max_score": 50000, "time_ms": 2.7},
+    {"case": 8, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 118, "remaining_blocks": 0, "cost": 118, "cost_ref": 129, "score": 50000, "max_score": 50000, "time_ms": 18.5},
+    {"case": 9, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 149, "remaining_blocks": 0, "cost": 149, "cost_ref": 151, "score": 50000, "max_score": 50000, "time_ms": 2.8},
+    {"case": 10, "n": 16, "m": 16, "c": 1, "valid": true, "error": null, "length": 116, "remaining_blocks": 0, "cost": 116, "cost_ref": 127, "score": 50000, "max_score": 50000, "time_ms": 13.1},
+    {"case": 11, "n": 17, "m": 18, "c": 2, "valid": true, "error": null, "length": 73, "remaining_blocks": 0, "cost": 73, "cost_ref": 80, "score": 100000, "max_score": 100000, "time_ms": 187.3},
+    {"case": 12, "n": 13, "m": 13, "c": 2, "valid": true, "error": null, "length": 38, "remaining_blocks": 0, "cost": 38, "cost_ref": 37, "score": 97368, "max_score": 100000, "time_ms": 3.0},
+    {"case": 13, "n": 15, "m": 15, "c": 2, "valid": true, "error": null, "length": 34, "remaining_blocks": 0, "cost": 34, "cost_ref": 35, "score": 100000, "max_score": 100000, "time_ms": 2.9},
+    {"case": 14, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 239, "remaining_blocks": 0, "cost": 239, "cost_ref": 238, "score": 99581, "max_score": 100000, "time_ms": 3.2},
+    {"case": 15, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 73, "remaining_blocks": 0, "cost": 73, "cost_ref": 72, "score": 98630, "max_score": 100000, "time_ms": 3.3}
+  ]
+}
