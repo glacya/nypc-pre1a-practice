@@ -1,0 +1,24 @@
+{
+  "graded_at": "2026-09-29T22:01:43+0900",
+  "solution": "./build/solution",
+  "summary": "빔 서치 중복 제거 수정: 탐색 전체 기록은 빔에 들어간 상태만(버려진 상태는 나중에 다시 경쟁 가능), 같은 단계 자식끼리는 별도로 중복 제거. X=12, 분기 8. 결과는 이전 중복 제거와 동일(13번 33)",
+  "total_score": 997435,
+  "max_score": 1000000,
+  "cases": [
+    {"case": 1, "n": 3, "m": 3, "c": 1, "valid": true, "error": null, "length": 1, "remaining_blocks": 0, "cost": 1, "cost_ref": 1, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 2, "n": 1, "m": 5, "c": 1, "valid": true, "error": null, "length": 4, "remaining_blocks": 0, "cost": 4, "cost_ref": 4, "score": 50000, "max_score": 50000, "time_ms": 2.6},
+    {"case": 3, "n": 5, "m": 5, "c": 2, "valid": true, "error": null, "length": 3, "remaining_blocks": 0, "cost": 3, "cost_ref": 3, "score": 50000, "max_score": 50000, "time_ms": 2.3},
+    {"case": 4, "n": 5, "m": 7, "c": 1, "valid": true, "error": null, "length": 9, "remaining_blocks": 0, "cost": 9, "cost_ref": 9, "score": 50000, "max_score": 50000, "time_ms": 2.6},
+    {"case": 5, "n": 6, "m": 7, "c": 1, "valid": true, "error": null, "length": 17, "remaining_blocks": 0, "cost": 17, "cost_ref": 18, "score": 50000, "max_score": 50000, "time_ms": 3.3},
+    {"case": 6, "n": 4, "m": 5, "c": 1, "valid": true, "error": null, "length": 11, "remaining_blocks": 0, "cost": 11, "cost_ref": 12, "score": 50000, "max_score": 50000, "time_ms": 2.6},
+    {"case": 7, "n": 13, "m": 13, "c": 1, "valid": true, "error": null, "length": 39, "remaining_blocks": 0, "cost": 39, "cost_ref": 37, "score": 47435, "max_score": 50000, "time_ms": 117.5},
+    {"case": 8, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 118, "remaining_blocks": 0, "cost": 118, "cost_ref": 129, "score": 50000, "max_score": 50000, "time_ms": 19.1},
+    {"case": 9, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 142, "remaining_blocks": 0, "cost": 142, "cost_ref": 151, "score": 50000, "max_score": 50000, "time_ms": 390.0},
+    {"case": 10, "n": 16, "m": 16, "c": 1, "valid": true, "error": null, "length": 116, "remaining_blocks": 0, "cost": 116, "cost_ref": 127, "score": 50000, "max_score": 50000, "time_ms": 13.3},
+    {"case": 11, "n": 17, "m": 18, "c": 2, "valid": true, "error": null, "length": 73, "remaining_blocks": 0, "cost": 73, "cost_ref": 80, "score": 100000, "max_score": 100000, "time_ms": 203.7},
+    {"case": 12, "n": 13, "m": 13, "c": 2, "valid": true, "error": null, "length": 35, "remaining_blocks": 0, "cost": 35, "cost_ref": 37, "score": 100000, "max_score": 100000, "time_ms": 280.1},
+    {"case": 13, "n": 15, "m": 15, "c": 2, "valid": true, "error": null, "length": 33, "remaining_blocks": 0, "cost": 33, "cost_ref": 35, "score": 100000, "max_score": 100000, "time_ms": 216.7},
+    {"case": 14, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 224, "remaining_blocks": 0, "cost": 224, "cost_ref": 238, "score": 100000, "max_score": 100000, "time_ms": 1545.1},
+    {"case": 15, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 69, "remaining_blocks": 0, "cost": 69, "cost_ref": 72, "score": 100000, "max_score": 100000, "time_ms": 650.0}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "graded_at": "2026-09-29T22:28:15+0900",
+  "solution": "./build/solution",
+  "summary": "HPA식 계층 분해 추가(C=1 전용): 4방향 연결 덩어리마다 상태 BFS로 정확히 치우고(안 치운 덩어리는 장애물), (치운 덩어리 집합, 위치) DP로 순서 결정(집합마다 위치 8개 유지). 빔 서치와 비교해 짧은 쪽 채택. 7번 계층 분해 39 = 빔 39로 변화 없음",
+  "total_score": 997435,
+  "max_score": 1000000,
+  "cases": [
+    {"case": 1, "n": 3, "m": 3, "c": 1, "valid": true, "error": null, "length": 1, "remaining_blocks": 0, "cost": 1, "cost_ref": 1, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 2, "n": 1, "m": 5, "c": 1, "valid": true, "error": null, "length": 4, "remaining_blocks": 0, "cost": 4, "cost_ref": 4, "score": 50000, "max_score": 50000, "time_ms": 2.3},
+    {"case": 3, "n": 5, "m": 5, "c": 2, "valid": true, "error": null, "length": 3, "remaining_blocks": 0, "cost": 3, "cost_ref": 3, "score": 50000, "max_score": 50000, "time_ms": 2.5},
+    {"case": 4, "n": 5, "m": 7, "c": 1, "valid": true, "error": null, "length": 9, "remaining_blocks": 0, "cost": 9, "cost_ref": 9, "score": 50000, "max_score": 50000, "time_ms": 2.5},
+    {"case": 5, "n": 6, "m": 7, "c": 1, "valid": true, "error": null, "length": 17, "remaining_blocks": 0, "cost": 17, "cost_ref": 18, "score": 50000, "max_score": 50000, "time_ms": 3.1},
+    {"case": 6, "n": 4, "m": 5, "c": 1, "valid": true, "error": null, "length": 11, "remaining_blocks": 0, "cost": 11, "cost_ref": 12, "score": 50000, "max_score": 50000, "time_ms": 2.4},
+    {"case": 7, "n": 13, "m": 13, "c": 1, "valid": true, "error": null, "length": 39, "remaining_blocks": 0, "cost": 39, "cost_ref": 37, "score": 47435, "max_score": 50000, "time_ms": 318.6},
+    {"case": 8, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 118, "remaining_blocks": 0, "cost": 118, "cost_ref": 129, "score": 50000, "max_score": 50000, "time_ms": 19.9},
+    {"case": 9, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 142, "remaining_blocks": 0, "cost": 142, "cost_ref": 151, "score": 50000, "max_score": 50000, "time_ms": 374.6},
+    {"case": 10, "n": 16, "m": 16, "c": 1, "valid": true, "error": null, "length": 116, "remaining_blocks": 0, "cost": 116, "cost_ref": 127, "score": 50000, "max_score": 50000, "time_ms": 13.6},
+    {"case": 11, "n": 17, "m": 18, "c": 2, "valid": true, "error": null, "length": 73, "remaining_blocks": 0, "cost": 73, "cost_ref": 80, "score": 100000, "max_score": 100000, "time_ms": 192.0},
+    {"case": 12, "n": 13, "m": 13, "c": 2, "valid": true, "error": null, "length": 35, "remaining_blocks": 0, "cost": 35, "cost_ref": 37, "score": 100000, "max_score": 100000, "time_ms": 261.9},
+    {"case": 13, "n": 15, "m": 15, "c": 2, "valid": true, "error": null, "length": 33, "remaining_blocks": 0, "cost": 33, "cost_ref": 35, "score": 100000, "max_score": 100000, "time_ms": 200.6},
+    {"case": 14, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 224, "remaining_blocks": 0, "cost": 224, "cost_ref": 238, "score": 100000, "max_score": 100000, "time_ms": 1522.0},
+    {"case": 15, "n": 20, "m": 20, "c": 2, "valid": true, "error": null, "length": 69, "remaining_blocks": 0, "cost": 69, "cost_ref": 72, "score": 100000, "max_score": 100000, "time_ms": 602.6}
+  ]
+}

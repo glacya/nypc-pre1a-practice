@@ -1,5 +1,8 @@
 // NYPC 2026 스텝 업 — 배찌와 다오의 대청소
 //
+// [보존본] HPA식 계층 분해(HierarchicalSolver)가 들어 있던 버전 (997 435점, result_260929_222815.json).
+// 덩어리 사이 상호작용을 다루기 어려워 현재 솔루션(src/solution.cpp)에서는 제거했다. 비교용으로만 유지한다.
+//
 // stdin으로 입력 하나를 받아, stdout으로 행동 문자열을 출력한다.
 // 코드는 세 구역으로 나뉜다.
 //   [1] INPUT   : 입력을 읽어 문제 상태(Problem)를 만든다.
@@ -512,7 +515,7 @@ std::vector<Action> solveGreedy(const Problem& problem) {
 
 // 빔 서치 설정값.
 struct BeamConfig {
-    int width = 48;                  // X: 단계마다 남기는 후보(진행 상황) 수
+    int width = 12;                  // X: 단계마다 남기는 후보(진행 상황) 수
     int branching = 8;               // 결정 지점마다 시도하는 목표 후보 수 (greedy 점수 상위)
     double timeLimitSeconds = 10.0;  // 시간 제한. 넘으면 그때까지 찾은 최선의 해를 돌려준다.
 };
@@ -727,14 +730,26 @@ public:
 
     // 최단 행동 열을 구한다. 한계값을 넘으면 std::nullopt.
     std::optional<std::vector<Action>> run() {
-        if (numBlocks_ > limits_.maxBlocks) return giveUp("too many blocks");
-        if (numBlocks_ == 0) return std::vector<Action>{};  // 부술 블럭이 없음
+        std::vector<std::vector<Action>> found = searchGoals(1);
+        if (found.empty()) return std::nullopt;
+        return found.front();
+    }
+
+    // 모든 블럭을 부수는 서로 다른 목표 상태를 짧은 순으로 최대 maxGoals개 찾아 각각의 행동 열을 돌려준다.
+    // BFS는 거리 순으로 상태를 발견하므로, 처음 발견한 maxGoals개가 곧 가장 짧은 maxGoals개다.
+    // C=1에서 목표 상태는 "마지막 폭탄을 쓴 위치"로 구분되므로, 끝나는 위치가 서로 다른 해들이 된다.
+    // (계층 분해에서 덩어리를 어디서 끝낼지 고를 수 있게 하려는 용도)
+    // 한계값을 넘거나 해가 없으면 그때까지 찾은 것만 돌려준다 (빈 목록일 수 있음).
+    std::vector<std::vector<Action>> searchGoals(int maxGoals) {
+        std::vector<std::vector<Action>> found;
+        if (numBlocks_ > limits_.maxBlocks) return giveUp("too many blocks"), found;
+        if (numBlocks_ == 0) return {std::vector<Action>{}};  // 부술 블럭이 없음
 
         // 상태 수 = 2^n × 칸^C × C. 한계를 넘으면 배열을 잡지 않고 포기한다.
         std::uint64_t total = std::uint64_t{1} << numBlocks_;
         for (int i = 0; i < numCharacters_; i++) total *= cells_.size();
         total *= numCharacters_;
-        if (total > limits_.maxStates) return giveUp("state limit");
+        if (total > limits_.maxStates) return giveUp("state limit"), found;
         parent_.assign(total, kUnvisited);
         lastAction_.assign(total, 0);
 
@@ -750,7 +765,7 @@ public:
         for (std::size_t head = 0; head < queue_.size(); head++) {
             // 시간 제한 확인 (매번 시계를 읽지 않도록 4096번에 한 번)
             if ((head & 4095) == 0 && elapsedSeconds(startTime) > limits_.timeLimitSeconds)
-                return giveUp("time limit");
+                return giveUp("time limit"), found;
 
             const std::uint32_t cur = queue_[head];
             const StateFields f = decode(cur);
@@ -764,7 +779,17 @@ public:
                 nf.destroyed = f.destroyed | blasted;
                 nf.turn = nextTurn;
                 const std::uint32_t next = static_cast<std::uint32_t>(encode(nf));
-                if (visit(next, cur, Action::Bomb) && nf.destroyed == fullMask) return reconstruct(start, next);
+                if (nf.destroyed == fullMask) {
+                    // 목표 상태: 기록만 하고 큐에는 넣지 않는다 (이후 행동은 필요 없음).
+                    if (parent_[next] == kUnvisited) {
+                        parent_[next] = cur;
+                        lastAction_[next] = static_cast<std::uint8_t>(Action::Bomb);
+                        found.push_back(reconstruct(start, next));
+                        if (static_cast<int>(found.size()) >= maxGoals) return found;
+                    }
+                } else {
+                    visit(next, cur, Action::Bomb);
+                }
             }
 
             // 이동 전이
@@ -777,7 +802,8 @@ public:
                 visit(static_cast<std::uint32_t>(encode(nf)), cur, d.action);
             }
         }
-        return giveUp("unreachable");  // 입력이 올바르다면 도달하지 않음 (모든 블럭은 파괴 가능)
+        if (found.empty()) giveUp("unreachable");  // 입력이 올바르다면 도달하지 않음 (모든 블럭은 파괴 가능)
+        return found;
     }
 
 private:
@@ -819,10 +845,7 @@ private:
         return true;
     }
 
-    std::nullopt_t giveUp(const char* reason) {
-        giveUpReason_ = reason;
-        return std::nullopt;
-    }
+    void giveUp(const char* reason) { giveUpReason_ = reason; }
 
     int cellOf(Pos p) const { return cellIndex_[p.row * problem_.grid.cols() + p.col]; }
 
@@ -882,6 +905,200 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// 계층 분해 (HPA* 방식): 블럭 덩어리 단위로 나눠 덩어리 안은 정확히, 덩어리 사이는 순서 DP로
+// ---------------------------------------------------------------------------
+
+// 계층 분해 설정값.
+struct HierarchicalConfig {
+    int maxClusterBlocks = 10;       // 덩어리 하나의 블럭 수 상한 (넘으면 이 방법을 쓰지 않음)
+    int maxClusters = 14;            // 덩어리 수 상한 (DP 상태가 2^덩어리 수)
+    int exitsPerState = 8;           // DP 상태(치운 덩어리 집합)마다 남기는 "현재 위치" 후보 수
+    double timeLimitSeconds = 10.0;  // 시간 제한. 넘으면 포기한다.
+};
+
+constexpr HierarchicalConfig kHierarchicalConfig{};
+
+// 블럭 덩어리를 따로 풀어 이어 붙이는 C=1 전용 풀이. HPA*(Hierarchical Path-Finding A*)의
+// "구역 안 비용은 미리 정확히, 구역 사이는 추상 그래프에서 탐색" 구조를 따른다.
+//
+// 1. 덩어리 식별: 상하좌우로 붙은 블럭끼리 한 덩어리 (4방향 연결 요소, flood fill).
+// 2. 덩어리 안 (정확): 덩어리 Y를 치우는 부분 문제를 상태 공간 BFS(ExactSearch)로 푼다.
+//    부분 문제의 지도: 이미 치운 덩어리의 칸은 빈 칸, 아직 안 치운 다른 덩어리의 블럭은 장애물,
+//    Y의 블럭만 블럭. 시작 위치는 현재 위치이므로, 덩어리까지 걸어가는 비용도 함께 최적화된다.
+//    끝나는 위치(마지막 폭탄 위치)가 다음 덩어리까지의 거리를 좌우하므로, 끝나는 위치가 서로 다른
+//    짧은 해를 여러 개(exitsPerState개) 받아 둔다.
+// 3. 덩어리 사이 (순서): (치운 덩어리 집합, 현재 위치)에 대한 DP. 집합을 작은 것부터 보며
+//    다음에 치울 덩어리를 하나씩 붙인다 (Held–Karp와 같은 모양). 위치 후보가 폭증하지 않도록
+//    집합마다 행동 수가 적은 위치 exitsPerState개만 남긴다 (이 부분은 근사).
+//
+// 올바름: 부분 문제는 "안 치운 다른 덩어리 = 장애물"로 가정하지만, 실제로는 그 블럭이 물줄기에 맞아
+//   먼저 부서질 수 있다. 이 차이는 실제 격자를 부분 문제의 격자보다 "빈 칸이 같거나 많게"만 만든다
+//   (부분 문제의 물줄기가 지나는 칸은 실제로도 비어 있고, 부분 문제가 부수는 블럭은 실제로도 부서지거나
+//   이미 부서져 있다). 따라서 이어 붙인 행동 열의 이동은 실제로도 항상 합법이고, 모든 덩어리를 치우면
+//   실제로도 모든 블럭이 없어진다. 마지막에 실제로 시뮬레이션해 확인하고, 일찍 끝나면 그 자리에서 자른다.
+//
+// 한계:
+//   - 덩어리 경계의 상호작용(한 폭탄으로 두 덩어리를 동시에 맞히기, 덩어리를 반쯤 치우고 다른 곳에
+//     다녀오기)은 계획에 반영되지 않는다. 우연히 생긴 이득은 실제 시뮬레이션에서만 드러난다.
+//   - 부분 문제에서 안 치운 덩어리를 장애물로 보므로, 그 사이를 물줄기로 관통하는 해는 찾지 못한다.
+//   - C=2는 두 캐릭터가 덩어리를 나눠 맡는 문제가 추가로 필요해 다루지 않는다.
+class HierarchicalSolver {
+public:
+    HierarchicalSolver(const Problem& problem, const HierarchicalConfig& config)
+        : problem_(problem), config_(config) {}
+
+    // 덩어리 수. 진단용 (run 이후 유효).
+    int numClusters() const { return static_cast<int>(clusters_.size()); }
+
+    // 포기한 이유 (성공했으면 빈 문자열). 진단용.
+    const std::string& giveUpReason() const { return giveUpReason_; }
+
+    std::optional<std::vector<Action>> run() {
+        if (problem_.characters.size() != 1) return giveUp("C=2 not supported");
+        findClusters();
+        if (static_cast<int>(clusters_.size()) > config_.maxClusters) return giveUp("too many clusters");
+        for (const std::vector<Pos>& cluster : clusters_)
+            if (static_cast<int>(cluster.size()) > config_.maxClusterBlocks) return giveUp("cluster too large");
+
+        const auto startTime = std::chrono::steady_clock::now();
+        const int numClusters = static_cast<int>(clusters_.size());
+        const int fullSet = (1 << numClusters) - 1;
+
+        // best[set]: 덩어리 집합 set을 치운 뒤의 (현재 위치, 여기까지의 행동 열) 후보들 (행동 수 오름차순)
+        std::vector<std::vector<Partial>> best(1 << numClusters);
+        best[0].push_back({problem_.characters[0].start, {}});
+
+        // set에 덩어리를 더하면 값이 커지므로, set을 오름차순으로 보면 항상 완성된 상태에서 확장한다.
+        for (int set = 0; set < fullSet; set++) {
+            for (const Partial& partial : best[set]) {
+                for (int next = 0; next < numClusters; next++) {
+                    if (set >> next & 1) continue;
+                    if (std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count() >
+                        config_.timeLimitSeconds)
+                        return giveUp("time limit");
+
+                    for (std::vector<Action>& clearing : clearCluster(set, next, partial.position)) {
+                        Partial extended{finalPosition(partial.position, clearing), partial.actions};
+                        extended.actions.insert(extended.actions.end(), clearing.begin(), clearing.end());
+                        keepBest(best[set | (1 << next)], std::move(extended));
+                    }
+                }
+            }
+        }
+        if (best[fullSet].empty()) return giveUp("no plan");
+        return verifyAndTrim(best[fullSet].front().actions);
+    }
+
+private:
+    // DP의 한 후보: 현재 위치와 여기까지의 행동 열.
+    struct Partial {
+        Pos position;
+        std::vector<Action> actions;
+    };
+
+    // 상하좌우로 붙은 블럭끼리 묶어 clusters_를 채운다 (flood fill).
+    void findClusters() {
+        const Grid& grid = problem_.grid;
+        clusterOf_.assign(grid.rows() * grid.cols(), -1);
+        for (int r = 0; r < grid.rows(); r++) {
+            for (int c = 0; c < grid.cols(); c++) {
+                if (grid.at(Pos{r, c}) != Cell::Block || clusterOf_[r * grid.cols() + c] >= 0) continue;
+                const int id = static_cast<int>(clusters_.size());
+                clusters_.emplace_back();
+                std::queue<Pos> queue;
+                queue.push(Pos{r, c});
+                clusterOf_[r * grid.cols() + c] = id;
+                while (!queue.empty()) {
+                    Pos cur = queue.front();
+                    queue.pop();
+                    clusters_[id].push_back(cur);
+                    for (const Direction& d : kDirections) {
+                        Pos next = step(cur, d);
+                        if (!grid.isInside(next) || grid.at(next) != Cell::Block) continue;
+                        if (clusterOf_[next.row * grid.cols() + next.col] >= 0) continue;
+                        clusterOf_[next.row * grid.cols() + next.col] = id;
+                        queue.push(next);
+                    }
+                }
+            }
+        }
+    }
+
+    // 덩어리 집합 cleared를 치운 상태에서, from에서 출발해 덩어리 target을 치우는 짧은 해들
+    // (끝나는 위치가 서로 다른 것, 최대 exitsPerState개). 부분 문제의 지도는 클래스 설명 2번 참고.
+    std::vector<std::vector<Action>> clearCluster(int cleared, int target, Pos from) const {
+        Problem sub = problem_;
+        sub.characters[0].start = from;
+        const Grid& grid = problem_.grid;
+        for (int r = 0; r < grid.rows(); r++) {
+            for (int c = 0; c < grid.cols(); c++) {
+                const int id = clusterOf_[r * grid.cols() + c];
+                if (id < 0 || id == target) continue;
+                sub.grid.set(Pos{r, c}, (cleared >> id & 1) ? Cell::Empty : Cell::Obstacle);
+            }
+        }
+        ExactSearch search(sub, kExactSearchLimits);
+        return search.searchGoals(config_.exitsPerState);
+    }
+
+    // from에서 actions를 따라 움직인 뒤의 위치 (폭탄은 위치를 바꾸지 않음).
+    static Pos finalPosition(Pos from, const std::vector<Action>& actions) {
+        for (Action a : actions) {
+            for (const Direction& d : kDirections)
+                if (d.action == a) from = step(from, d);
+        }
+        return from;
+    }
+
+    // candidates(행동 수 오름차순)에 후보를 넣되, 같은 위치는 더 짧은 것만, 전체는 exitsPerState개까지만 남긴다.
+    void keepBest(std::vector<Partial>& candidates, Partial candidate) const {
+        for (auto it = candidates.begin(); it != candidates.end(); ++it) {
+            if (it->position != candidate.position) continue;
+            if (it->actions.size() <= candidate.actions.size()) return;
+            candidates.erase(it);
+            break;
+        }
+        auto pos = std::upper_bound(candidates.begin(), candidates.end(), candidate,
+                                    [](const Partial& x, const Partial& y) { return x.actions.size() < y.actions.size(); });
+        candidates.insert(pos, std::move(candidate));
+        if (static_cast<int>(candidates.size()) > config_.exitsPerState) candidates.pop_back();
+    }
+
+    // 이어 붙인 행동 열을 실제 규칙으로 시뮬레이션해 합법인지 확인하고, 블럭이 모두 없어진 시점에서 자른다.
+    // (클래스 설명의 "올바름"에 따라 실패할 일은 없지만, 잘못된 출력은 0점이므로 한 번 더 확인한다.)
+    std::optional<std::vector<Action>> verifyAndTrim(const std::vector<Action>& actions) {
+        GameState state(problem_);
+        std::vector<Action> trimmed;
+        for (Action a : actions) {
+            if (state.remainingBlocks() == 0) break;
+            trimmed.push_back(a);
+            if (a == Action::Bomb) {
+                state.applyBomb(0);
+                continue;
+            }
+            for (const Direction& d : kDirections) {
+                if (d.action != a) continue;
+                if (!state.grid().isPassable(step(state.position(0), d))) return giveUp("illegal move");
+                state.applyMove(0, d);
+            }
+        }
+        if (state.remainingBlocks() != 0) return giveUp("blocks remain");
+        return trimmed;
+    }
+
+    std::nullopt_t giveUp(const char* reason) {
+        giveUpReason_ = reason;
+        return std::nullopt;
+    }
+
+    const Problem& problem_;
+    HierarchicalConfig config_;
+    std::vector<std::vector<Pos>> clusters_;  // 덩어리 번호 → 블럭 위치들
+    std::vector<int> clusterOf_;              // 칸 → 덩어리 번호 (블럭이 아니면 -1)
+    std::string giveUpReason_;
+};
+
+// ---------------------------------------------------------------------------
 // 풀이 선택
 // ---------------------------------------------------------------------------
 
@@ -889,6 +1106,7 @@ private:
 // 1. 정확한 탐색(ExactSearch)을 먼저 시도한다: 블럭 수 ≤ 16, 방문 상태 수·시간(10초) 한계 안이면 최적해.
 // 2. 조건을 넘어 포기하면 빔 서치(BeamSearch)를 쓴다. 빔 서치는 greedy 해를 기준으로 시작하므로
 //    결과가 greedy보다 나빠지지 않는다.
+// 3. C=1이면 계층 분해(HierarchicalSolver)도 시도해, 빔 서치보다 짧으면 그 해를 쓴다.
 // 환경 변수 NYPC_DEBUG가 있으면 어떤 방법을 썼는지 stderr에 적는다 (stdout 출력에는 영향 없음).
 std::vector<Action> solve(const Problem& problem) {
     const bool debug = std::getenv("NYPC_DEBUG") != nullptr;
@@ -924,6 +1142,17 @@ std::vector<Action> solve(const Problem& problem) {
                   << " actions (" << beamSearch.distinctStates() << " beam states, " << beamSearch.duplicatesSkipped()
                   << " duplicates skipped), " << total << "s total\n";
     }
+
+    HierarchicalSolver hierarchical(problem, kHierarchicalConfig);
+    std::optional<std::vector<Action>> clustered = hierarchical.run();
+    if (debug) {
+        if (clustered)
+            std::cerr << "[solve] hierarchical: " << clustered->size() << " actions, " << hierarchical.numClusters()
+                      << " clusters\n";
+        else
+            std::cerr << "[solve] hierarchical gave up (" << hierarchical.giveUpReason() << ")\n";
+    }
+    if (clustered && clustered->size() < beam.size()) return *clustered;
     return beam;
 }
 
